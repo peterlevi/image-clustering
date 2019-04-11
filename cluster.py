@@ -1,10 +1,10 @@
+#!/usr/bin/env python
 import imagehash
 import os
 import json
 import shutil
 import multiprocessing
 import time
-import math
 import numpy as np
 from PIL import Image
 
@@ -50,26 +50,27 @@ MAX_THRESHOLD = 10
 OUTPUT = 'output'
 
 
-def go(alg):
+def _hash(arg):
+    i, f, algo = arg
+    hashfn = ALGORITHMS[algo][0]
+    print(i, f)
+    i = Image.open(os.path.join(IMAGEDIR, f))
+    hash = hashfn(i)
+    return f, hash.hash.tolist()
+
+
+def go(algorithm):
     """
     Compute hashes (and store) them, and then run clustering for a particular hash algorithm
-    :param alg:
-    :return:
+    :param algorithm: the key for the algorithm to run (@see ALGORITHMS)
     """
     start_time = time.time()
-    output = os.path.join(OUTPUT, alg)
-    print('Running for', alg, ', writing to ', output)
+    output = os.path.join(OUTPUT, algorithm)
+    print('Running for', algorithm, ', writing to ', output)
 
-    hashfn, max_threshold = ALGORITHMS[alg]
+    hashfn, max_threshold = ALGORITHMS[algorithm]
 
     hashes = {}
-
-    def _hash(arg):
-        i, f = arg
-        print(i, f)
-        i = Image.open(os.path.join(IMAGEDIR, f))
-        hash = hashfn(i)
-        return f, hash.hash.tolist()
 
     hashes_json_path = os.path.join(output, 'hashes.json')
     if os.path.exists(hashes_json_path):
@@ -79,9 +80,10 @@ def go(alg):
         for f, h in data.items():
             hashes[f] = imagehash.ImageHash(np.array(h))
     else:
-        pool = multiprocessing.Pool(processes=3)
-        # result = pool.imap_unordered(_hash, enumerate(sorted(os.listdir(IMAGEDIR))))
-        result = map(_hash, enumerate(sorted(os.listdir(IMAGEDIR))))
+        pool = multiprocessing.Pool(processes=max(1, os.cpu_count() - 1))
+        l = [(i, f, algorithm) for i, f in enumerate(sorted(os.listdir(IMAGEDIR)))]
+        result = pool.imap_unordered(_hash, l)
+        # result = map(_hash, enumerate(sorted(os.listdir(IMAGEDIR))))
         hashes = {f: imagehash.ImageHash(np.array(h)) for f, h in result}
 
     files = set(hashes.keys())
@@ -109,7 +111,7 @@ def go(alg):
     print('Max diffs:\n', '\n'.join(str(d) for d in diffs[-20:]))
     print('Avg diff: ', sum(d[0] for d in diffs) / len(diffs))
 
-    for threshold in range(0, max_threshold, math.ceil(max_threshold / 128)):
+    for threshold in range(0, max_threshold):
         print('Copying for threshold {}'.format(threshold))
 
         neighbors = {}
@@ -142,13 +144,16 @@ def go(alg):
             for f in cluster:
                 fname, ext = os.path.splitext(f)
                 filename = '{}_{}{}'.format(fname, str(hashes[f]), ext)
-                # shutil.copy(os.path.join(imagedir, f), os.path.join(cdir, filename))
                 os.symlink(os.path.abspath(os.path.join(IMAGEDIR, f)), os.path.join(cdir, filename))
+        
+        if not unclustered:
+            # no need to raise threshold higher
+            break
 
     end_time = time.time()
 
     print('Time taken: ', round(end_time - start_time, 2), 'sec\n\n')
 
 
-for alg in ALGORITHMS.keys():
-    go(alg)
+for algorithm in ALGORITHMS.keys():
+    go(algorithm)
