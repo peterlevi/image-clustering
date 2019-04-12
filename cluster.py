@@ -9,7 +9,8 @@ import numpy as np
 from PIL import Image
 
 
-IMAGEDIR = 'images'
+IMAGEDIR = 'data/images'
+OUTPUT = 'data/output'
 
 
 def connected_components(neighbors):
@@ -31,29 +32,35 @@ def connected_components(neighbors):
             result.add(node)
         return result
 
-    for node in neighbors:
+    # for node in neighbors:
         if node not in seen:
             yield component(node)
 
 
 ALGORITHMS = {
-    'phash_8': (lambda i: imagehash.phash(i, hash_size=8), 64),
-    'avhash_8': (lambda i: imagehash.average_hash(i, hash_size=8), 64),
-    'dhash_8': (lambda i: imagehash.dhash(i, hash_size=8), 256),
-    'phash_16': (lambda i: imagehash.phash(i, hash_size=16), 256),
-    'avhash_16': (lambda i: imagehash.average_hash(i, hash_size=16), 256),
-    'dhash_16': (lambda i: imagehash.dhash(i, hash_size=16), 256),
+    'phash_8': (lambda i: imagehash.phash(i, hash_size=8), 20, 1),
+    'avhash_8': (lambda i: imagehash.average_hash(i, hash_size=8), 20, 1),
+    'dhash_8': (lambda i: imagehash.dhash(i, hash_size=8), 20, 1),
+    'whash_8': (lambda i: imagehash.whash(i, hash_size=8), 20, 1),
+    'phash_12': (lambda i: imagehash.phash(i, hash_size=12), 60, 2),
+    'avhash_12': (lambda i: imagehash.average_hash(i, hash_size=12), 60, 2),
+    'dhash_12': (lambda i: imagehash.dhash(i, hash_size=12), 60, 2),
+    'phash_16': (lambda i: imagehash.phash(i, hash_size=16), 110, 3),
+    'avhash_16': (lambda i: imagehash.average_hash(i, hash_size=16), 110, 3),
+    'dhash_16': (lambda i: imagehash.dhash(i, hash_size=16), 110, 3),
+    'whash_16': (lambda i: imagehash.whash(i, hash_size=16), 110, 3),
+    'phash_20': (lambda i: imagehash.phash(i, hash_size=20), 200, 5),
+    'avhash_20': (lambda i: imagehash.average_hash(i, hash_size=20), 200, 5),
+    'dhash_20': (lambda i: imagehash.dhash(i, hash_size=20), 200, 5),
+    # 'whash_32': (lambda i: imagehash.whash(i, hash_size=32), 200, 5),
 }
-
-MAX_THRESHOLD = 10
-
-OUTPUT = 'output'
 
 
 def _hash(arg):
     i, f, algo = arg
     hashfn = ALGORITHMS[algo][0]
-    print(i, f)
+    if i % 100 == 0:
+        print(i, f)
     i = Image.open(os.path.join(IMAGEDIR, f))
     hash = hashfn(i)
     return f, hash.hash.tolist()
@@ -63,12 +70,12 @@ def go(algorithm):
     """
     Compute hashes (and store) them, and then run clustering for a particular hash algorithm
     :param algorithm: the key for the algorithm to run (@see ALGORITHMS)
-    """
+    # """
     start_time = time.time()
     output = os.path.join(OUTPUT, algorithm)
     print('Running for', algorithm, ', writing to ', output)
 
-    hashfn, max_threshold = ALGORITHMS[algorithm]
+    hashfn, max_threshold, threshold_step = ALGORITHMS[algorithm]
 
     hashes = {}
 
@@ -87,14 +94,9 @@ def go(algorithm):
         hashes = {f: imagehash.ImageHash(np.array(h)) for f, h in result}
 
     files = set(hashes.keys())
-
     hashes_sorted = sorted(hashes.items(), key=lambda h: str(h[1]))
-    diffs = []
-    for i1, h1 in enumerate(hashes_sorted):
-        for i2, h2 in enumerate(hashes_sorted):
-            if i1 < i2:
-                diffs.append((h1[1] - h2[1], h1[0], h2[0]))
-    diffs = sorted(diffs, key=lambda d: d[0])
+
+    print('Hashes computed ', time.time() - start_time)
 
     os.makedirs(output, exist_ok=True)
     hashes_to_write = {}
@@ -103,16 +105,30 @@ def go(algorithm):
     with open(hashes_json_path, 'w') as outf:
         json.dump(hashes_to_write, outf)
 
-    with open(os.path.join(output, 'diffs.txt'), 'w') as outf:
-        for d in diffs:
-            print(d, file=outf)
+    print('Hashes persisted ', time.time() - start_time)
 
-    print('Min diffs:\n', '\n'.join(str(d) for d in diffs[:20]))
-    print('Max diffs:\n', '\n'.join(str(d) for d in diffs[-20:]))
-    print('Avg diff: ', sum(d[0] for d in diffs) / len(diffs))
+    diffs = []
+    for i1, h1 in enumerate(hashes_sorted):
+        if i1 % 100 == 0:
+            print('diff', i1, ' time ', time.time() - start_time)
+        for i2, h2 in enumerate(hashes_sorted):
+            if i1 < i2:
+                diff = h1[1] - h2[1]
+                if diff < max_threshold:
+                    diffs.append((diff, h1[0], h2[0]))
+    # diffs = sorted(diffs, key=lambda d: d[0])
+    print('Diffs computed ', time.time() - start_time)
 
-    for threshold in range(0, max_threshold):
-        print('Copying for threshold {}'.format(threshold))
+    # with open(os.path.join(output, 'diffs.txt'), 'w') as outf:
+    #     for d in diffs:
+    #         print(d, file=outf)
+
+    # print('Min diffs:\n', '\n'.join(str(d) for d in diffs[:20]))
+    # print('Max diffs:\n', '\n'.join(str(d) for d in diffs[-20:]))
+    # print('Avg diff: ', sum(d[0] for d in diffs) / len(diffs))
+
+    for threshold in range(0, max_threshold, threshold_step):
+        print('Copying for threshold {}'.format(threshold), time.time() - start_time)
 
         neighbors = {}
         for d in diffs:
@@ -125,7 +141,7 @@ def go(algorithm):
             key=lambda c: len(c),
             reverse=True))
 
-        print(clusters)
+        # print(clusters)
         in_clusters = set().union(*clusters)
         unclustered = files - in_clusters
 
@@ -146,9 +162,9 @@ def go(algorithm):
                 filename = '{}_{}{}'.format(fname, str(hashes[f]), ext)
                 os.symlink(os.path.abspath(os.path.join(IMAGEDIR, f)), os.path.join(cdir, filename))
         
-        if not unclustered:
-            # no need to raise threshold higher
-            break
+        # if not unclustered:
+        #     # no need to raise threshold higher
+        #     break
 
     end_time = time.time()
 
