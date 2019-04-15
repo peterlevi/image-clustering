@@ -3,16 +3,16 @@
 This is a tool for clustering images using perceptual hashing.
 
 ## Running
-Put images to cluster inside an `images` subfolder to the folder where you are running the script.
-The output clusters will be written into an `output` subfolder (will be auto-created if necessary).
+Put images to cluster inside an `data/images` subfolder to the folder where you are running the script.
+The output clusters will be written into an `data/output` subfolder (will be auto-created if necessary).
 
 
 ## Implementation
 ImageHash (https://github.com/JohannesBuchner/imagehash) provides the implementation of 
-phash, dhash, and average hash.
+phash, dhash, average hash, wavelet hash.
 
 Hashing takes 0.5-1 second per image, and is run for each of the hash algorithms configured in 
-ALGORITHMS.
+ALGORITHMS. Multiprocessing is used to speed up hashing.
 
 After we compute the image hashes with ImageHash, we iterate a range of thresholds. 
 For each we compare the hash differences between pairs of images against the threshold, and for 

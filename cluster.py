@@ -17,8 +17,8 @@ def connected_components(neighbors):
     """
     Compute connected components from an adjacency list
     Based on https://stackoverflow.com/a/13837045
-    :param neighbors: map vertex -> list of neighbors
-    :return: iterator over the connected components (as sets of verteces)
+    :param neighbors: map node -> list of neighbors
+    :return: iterator over the connected components (as sets of nodes)
     """
     seen = set()
 
@@ -32,7 +32,7 @@ def connected_components(neighbors):
             result.add(node)
         return result
 
-    # for node in neighbors:
+    for node in neighbors:
         if node not in seen:
             yield component(node)
 
@@ -90,7 +90,6 @@ def go(algorithm):
         pool = multiprocessing.Pool(processes=max(1, os.cpu_count() - 1))
         l = [(i, f, algorithm) for i, f in enumerate(sorted(os.listdir(IMAGEDIR)))]
         result = pool.imap_unordered(_hash, l)
-        # result = map(_hash, enumerate(sorted(os.listdir(IMAGEDIR))))
         hashes = {f: imagehash.ImageHash(np.array(h)) for f, h in result}
 
     files = set(hashes.keys())
@@ -162,10 +161,6 @@ def go(algorithm):
                 filename = '{}_{}{}'.format(fname, str(hashes[f]), ext)
                 os.symlink(os.path.abspath(os.path.join(IMAGEDIR, f)), os.path.join(cdir, filename))
         
-        # if not unclustered:
-        #     # no need to raise threshold higher
-        #     break
-
     end_time = time.time()
 
     print('Time taken: ', round(end_time - start_time, 2), 'sec\n\n')
