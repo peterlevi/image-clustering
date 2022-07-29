@@ -16,9 +16,8 @@ pip install -r requirements.txt
 
 ## Running
 
-Put images to cluster inside an `data/images` subfolder of the folder where you are running the
-script.
-Then run with:
+Put images to cluster inside a `data/images` subfolder of the folder where you are running the
+script. Then run with:
 
 ```commandline
 ./cluster.py
