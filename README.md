@@ -23,7 +23,7 @@ script. Then run with:
 ./cluster.py
 ```
 
-The output clusters will be written into an `data/output` subfolder (will be auto-created if
+The output clusters will be written into a `data/output` subfolder (will be auto-created if
 necessary).
 
 ## Implementation
