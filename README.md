@@ -61,7 +61,9 @@ will be sorted by size (`001` being the largest).
 Every group folder contains symlinks to the `data` folder where the original images reside.
 
 A photo viewer with good browsing capabilities can then be used to explore the clusters visually -
-for Linux a good one for this purpose is my own
-[Ojo Image Viewer](https://github.com/peterlevi/ojo/).
+for Linux a good one for this purpose is [Ojo Image Viewer](https://github.com/peterlevi/ojo/).
+
+![Screenshot from 2022-07-30 02-11-44](https://user-images.githubusercontent.com/1457048/181859333-ab4049d9-e23f-4643-aba7-b80b66b6208a.png)
+
 
 
